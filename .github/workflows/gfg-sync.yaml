@@ -1,0 +1,63 @@
+
+name: GFG Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch GFG submission history
+        env:
+          GFG_SESSIONID: ${{ secrets.GFG_SESSIONID }}
+          GFG_CSRFTOKEN: ${{ secrets.GFG_CSRFTOKEN }}
+          GFG_USERNAME: pathakpart7iis
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          url = "https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/"
+
+          session = requests.Session()
+          session.cookies.set("sessionid", os.environ["GFG_SESSIONID"],
+                             domain=".geeksforgeeks.org")
+          session.cookies.set("csrftoken", os.environ["GFG_CSRFTOKEN"],
+                             domain=".geeksforgeeks.org")
+
+          response = session.post(
+              url,
+              json={"handle": os.environ["GFG_USERNAME"]},
+              headers={
+                  "User-Agent": "Mozilla/5.0",
+                  "Referer": "https://www.geeksforgeeks.org/",
+                  "X-CSRFToken": os.environ["GFG_CSRFTOKEN"],
+              },
+              timeout=30,
+          )
+
+          print("HTTP status:", response.status_code)
+          if response.ok:
+              print("History response received.")
+              print("Response type:", response.headers.get("content-type"))
+          else:
+              response.raise_for_status()
+
+          # This endpoint has not been verified to return source code.
+          # Do not claim a solution sync until that is confirmed.
+          PY
